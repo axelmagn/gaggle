@@ -1,0 +1,17 @@
+[package]
+edition = "2021"
+name = "gaggle-prototype"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.86"
+bytes = "1.7.1"
+clap = {version = "4.5.16", features = ["derive"]}
+futures = "0.3.30"
+serde = "1.0.208"
+serde_json = "1.0.127"
+tarpc = { version = "0.34.0", features = ["tokio1", "full"] }
+tokio = {version = "1.39.3", features = ["full"]}
+uuid = "1.10.0"
