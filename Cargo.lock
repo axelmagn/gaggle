@@ -337,7 +337,15 @@ dependencies = [
 name = "gaggle"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "bytes",
+ "clap",
+ "futures",
+ "serde",
  "serde_json",
+ "tarpc",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

@@ -65,6 +65,7 @@ impl DataCoder {
         }
     }
 
+    #[allow(dead_code)]
     fn encode<T>(&self, val: &T) -> anyhow::Result<Vec<u8>>
     where
         T: PortableData,
@@ -115,6 +116,7 @@ where
 
 struct PortableFnWrapper {
     type_id: PortableTypeId,
+    #[allow(dead_code)]
     type_name: &'static str, // for debugging
     arg_coder: DataCoder,
     output_coder: DataCoder,
@@ -175,6 +177,7 @@ impl PortableFnWrapper {
         Ok(arg_data)
     }
 
+    #[allow(dead_code)]
     fn decode_output<O>(&self, data: &[u8]) -> anyhow::Result<Box<O>>
     where
         O: PortableData,
@@ -220,34 +223,10 @@ impl PortableFnWrapper {
     }
 }
 
-// impl<F, I, O> From<F> for PortableFnWrapper
-// where
-//     F: Fn(&I) -> O + 'static,
-//     I: PortableData,
-//     O: Serialize + DeserializeOwned,
-// {
-//     fn from(f: F) -> Self {
-//         Self::from_fn(f)
-//     }
-// }
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 struct PortableFnCall {
     type_id: PortableTypeId,
     arg_data: Vec<u8>,
-}
-
-impl PortableFnCall {
-    fn new<F, I, O>(_f: F, args: &I) -> anyhow::Result<Self>
-    where
-        F: Fn(&I) -> O + 'static,
-        I: PortableData,
-        O: PortableData,
-    {
-        let type_id = TypeId::of::<F>().into();
-        let arg_data = serde_json::to_vec(args)?;
-        Ok(Self { type_id, arg_data })
-    }
 }
 
 struct PortableFnRegistry {
