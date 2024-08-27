@@ -1,6 +1,7 @@
 use std::{
     any::{type_name, type_name_of_val, Any, TypeId},
     collections::HashMap,
+    fmt::Debug,
     future::{self, Future},
     hash::{DefaultHasher, Hash, Hasher},
     sync::mpsc,
@@ -36,8 +37,8 @@ impl From<TypeId> for PortableTypeId {
     }
 }
 
-trait PortableData: Serialize + DeserializeOwned + 'static {}
-impl<T> PortableData for T where T: Serialize + DeserializeOwned + 'static {}
+trait PortableData: Serialize + DeserializeOwned + Debug + 'static {}
+impl<T> PortableData for T where T: Serialize + DeserializeOwned + Debug + 'static {}
 
 struct DataCoder {
     encoder: Box<dyn Fn(&dyn Any) -> anyhow::Result<Vec<u8>>>,
@@ -107,7 +108,7 @@ impl<T> From<T> for DataCoder
 where
     T: PortableData,
 {
-    fn from(val: T) -> Self {
+    fn from(_val: T) -> Self {
         Self::new::<T>()
     }
 }
@@ -133,6 +134,12 @@ impl PortableFnWrapper {
         let output_coder = DataCoder::new::<O>();
         let thunk: Box<dyn Fn(&dyn Any) -> anyhow::Result<Box<dyn Any>>> =
             Box::new(move |data: &dyn Any| {
+                println!(
+                    "thunking: {}(&{}) -> {}",
+                    fn_type_name,
+                    type_name::<I>(),
+                    type_name::<O>(),
+                );
                 let data = data.downcast_ref::<I>().with_context(|| {
                     format!(
                         "could not downcast to input type &{} (fn: {})",
@@ -153,8 +160,9 @@ impl PortableFnWrapper {
     }
 
     fn call_raw(&self, arg_data: Vec<u8>) -> anyhow::Result<Vec<u8>> {
+        println!("call_raw::arg_data: {:?}", arg_data);
         let arg = (self.arg_coder.decoder)(&arg_data)?;
-        let output = (self.thunk)(&arg)?;
+        let output = (self.thunk)(&*arg)?;
         let output_data = (self.output_coder.encoder)(&*output)?;
         Ok(output_data)
     }
@@ -191,6 +199,24 @@ impl PortableFnWrapper {
             type_id: self.type_id,
             arg_data,
         })
+    }
+
+    async fn call_remote<I, O>(
+        &self,
+        client: &PortableFnServiceClient,
+        arg: &I,
+    ) -> anyhow::Result<O>
+    where
+        I: PortableData,
+        O: PortableData,
+    {
+        let portable_call = self.portable_call(arg)?;
+        let response = client
+            .call(context::current(), portable_call)
+            .await?
+            .map_err(|e| anyhow::Error::msg(e))?;
+        let result = self.output_coder.decode(&response)?;
+        Ok(*result)
     }
 }
 
@@ -259,6 +285,27 @@ impl PortableFnRegistry {
     {
         let type_id = TypeId::of::<F>().into();
         self.thunks.get(&type_id)
+    }
+
+    async fn call_remote<F, I, O>(
+        &self,
+        client: &PortableFnServiceClient,
+        f: F,
+        arg: &I,
+    ) -> anyhow::Result<O>
+    where
+        F: Fn(&I) -> O + 'static,
+        I: PortableData,
+        O: PortableData,
+    {
+        let portable_fn = self.get(f).with_context(|| {
+            format!(
+                "no function registered for type_id {:?} ({})",
+                TypeId::of::<F>(),
+                type_name::<F>(),
+            )
+        })?;
+        portable_fn.call_remote(client, arg).await
     }
 }
 
@@ -361,22 +408,16 @@ async fn run_client() -> anyhow::Result<()> {
 
     let mut transport = tarpc::serde_transport::tcp::connect(server_addr, Json::default);
     transport.config_mut().max_frame_length(usize::MAX);
+    let client = PortableFnServiceClient::new(client::Config::default(), transport.await?).spawn();
 
     let registry = create_registry();
-    let client = PortableFnServiceClient::new(client::Config::default(), transport.await?).spawn();
-    let portable_fn = registry.get(&add).expect("function not found");
-    let portable_call = portable_fn.portable_call(&(2, 3))?;
-    println!("Portable Call: {:?}", portable_call);
-    let result_data = client
-        .call(context::current(), portable_call)
-        .await
-        .expect("could not complete client call")
-        .expect("server returned error");
-    println!("Result Data: {:?}", result_data);
-    let result = portable_fn
-        .decode_output::<i32>(&result_data)
-        .expect("could not decode result");
-    println!("Result: {}", result);
+    let arg = (3, 4);
+
+    let result = registry.call_remote(&client, &add, &arg).await?;
+    println!("{}({:?}) -> {:?}", type_name_of_val(&add), arg, result);
+
+    let result = registry.call_remote(&client, &mult, &arg).await?;
+    println!("{}({:?}) -> {:?}", type_name_of_val(&mult), arg, result);
 
     Ok(())
 }
