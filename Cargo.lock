@@ -349,21 +349,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gaggle-prototype"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytes",
- "clap",
- "futures",
- "serde",
- "serde_json",
- "tarpc",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "getrandom"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
