@@ -1,3 +1,3 @@
-mod data;
-mod thunk;
-mod types;
+pub mod data;
+pub mod thunk;
+pub mod types;

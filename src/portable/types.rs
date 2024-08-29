@@ -4,7 +4,7 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
 };
 
-use super::data::DataTable;
+use super::{data::PortableDataTable, thunk::FnTable};
 
 /// A portable TypeId.
 ///
@@ -48,10 +48,12 @@ fn test_type_id_is_unique() {
 }
 
 /// A generic wrapper that negotiates between the capabilities of a specific
-/// type and its portable representation.
+/// type and its portable representations.
+///
 struct TypeTable {
     type_id: TypeId,
     /// Type name for debugging purposes.
     type_name: &'static str,
-    data: Option<DataTable>,
+    data_table: Option<PortableDataTable>,
+    fn_table: Option<FnTable>,
 }
