@@ -1,6 +1,5 @@
 use std::any::{self, Any};
 
-use super::data::PortableData;
 use anyhow::{anyhow, Result};
 
 pub struct FnTable {

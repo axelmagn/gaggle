@@ -6,12 +6,12 @@ use serde::{de::DeserializeOwned, Serialize};
 pub trait PortableData: Serialize + DeserializeOwned + Any {}
 impl<T> PortableData for T where T: Serialize + DeserializeOwned + Any {}
 
-pub struct PortableDataTable {
+pub struct DataTable {
     encoder: Box<dyn Fn(&dyn Any) -> anyhow::Result<Vec<u8>>>,
     decoder: Box<dyn Fn(&[u8]) -> anyhow::Result<Box<dyn Any>>>,
 }
 
-impl PortableDataTable {
+impl DataTable {
     pub fn new<T>() -> Self
     where
         T: PortableData,
@@ -53,7 +53,7 @@ fn test_data_table_roundtrip() {
     where
         T: PortableData + PartialEq + std::fmt::Debug,
     {
-        let data_table = PortableDataTable::new::<T>();
+        let data_table = DataTable::new::<T>();
         let data = data_table.encode(&val).unwrap();
         let decoded = data_table.decode::<T>(&data).unwrap();
         assert_eq!(*decoded, val);

@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::{
     any::{self, Any},
+    collections::HashMap,
     hash::{DefaultHasher, Hash, Hasher},
 };
 
-use super::{data::PortableDataTable, thunk::FnTable};
+use super::{data::DataTable, thunk::FnTable};
 
 /// A portable TypeId.
 ///
@@ -17,6 +18,12 @@ pub struct TypeId {
     // unnecessarily to the internal implementation. Instead, we'll hash the
     // any::TypeId as a whole and store the result.
     inner_hash: u64,
+}
+
+impl TypeId {
+    pub fn of<T: Any>() -> Self {
+        any::TypeId::of::<T>().into()
+    }
 }
 
 impl From<any::TypeId> for TypeId {
@@ -54,6 +61,23 @@ struct TypeTable {
     type_id: TypeId,
     /// Type name for debugging purposes.
     type_name: &'static str,
-    data_table: Option<PortableDataTable>,
+    data_table: Option<DataTable>,
     fn_table: Option<FnTable>,
 }
+
+impl TypeTable {
+    fn new<T: Any>() -> Self {
+        Self {
+            type_id: TypeId::of::<T>(),
+            type_name: any::type_name::<T>(),
+            data_table: None,
+            fn_table: None,
+        }
+    }
+}
+
+struct TypeIndex {
+    types: HashMap<TypeId, TypeTable>,
+}
+
+impl TypeIndex {}
